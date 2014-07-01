@@ -1,0 +1,129 @@
+package lab5.view;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
+
+import lab5.client.SetMsgInputStream;
+import lab5.client.SetMsgOutputStream;
+import lab5.model.SetGame;
+/**ServantThread
+ * 
+ * This thread listens to the client for what type of game to join, joins an
+ * appropriate game, and then listens to requests from the client to interact with the game.
+ * 
+ *
+ */
+public class ServantThread extends Thread {
+	private SetGame model;
+	private byte yourNumber;
+	private byte versionNumber = 0;
+	private Socket mySocket;
+	boolean started;
+	private String name;
+	private GameQueue master;
+	private SetMsgOutputStream smos;
+	private SetMsgInputStream smis;
+
+	public ServantThread(GameQueue[] masters, Socket s){
+		try {
+			mySocket = s;
+			smis = new SetMsgInputStream(new DataInputStream(s.getInputStream()));
+			smos = new SetMsgOutputStream(new DataOutputStream(s.getOutputStream()),false);
+			byte[] hello = smis.getInput().getBytes();
+			byte players;
+			name = "";
+			if(hello[0]==2){//Was this a type 2 hello message?
+				players = hello[1];
+				for(short position = 2; position<hello.length; position++){
+					name+= (char) hello[position];
+				}
+			}else{
+				s.close(); //disconnect if you didn't receive a hello message.
+				model = null;
+				return;
+			}
+			yourNumber = 0;
+			master = masters[players];
+			Object lock = master.getLock();
+			synchronized(lock){
+				model = master.getModel();
+				if(master.addClient(name)){
+					yourNumber = players;
+				}else{
+					byte i = 0;
+					while(yourNumber == 0){
+						if(name.equals(master.getClients()[i])){
+							yourNumber = (byte) (i+1);
+							started = true;
+						}else{
+							i ++;
+						}
+					}
+				}
+				smos.helloResponseMessage(yourNumber, versionNumber); //tell the client their number
+			}
+			lock.notifyAll();
+		}
+		catch (IOException e) {
+			if(master!=null){
+				if(name!= null){
+					master.removeClient(name);
+				}
+			}
+		}
+	}
+
+	public void run(){
+		if(model!= null){
+			Object lock = master.getLock();
+			while(!started){//wait until the game starts.
+				synchronized(lock){
+					if(model==master.getModel()){
+						try {
+							if(mySocket.isConnected()){
+								lock.wait();
+							}else{
+								master.removeClient(name);
+							}
+						}catch(InterruptedException e) {
+							e.printStackTrace();
+						}
+					}else{
+						started = true;
+					}
+				}
+			}
+
+			while(true){//while the game is running. There should be a boolean for this in the SetGame class.
+				try {
+					byte[] message = smis.getInput().getBytes();
+					byte type = message[0];
+					if(type == 3){
+						//	smos.gamefieldUpdateMessage(model.getCardsInDeck, model.getCardsInPlay, model.getCardsInField)
+						smos.gameplayerUpdateMessage((byte) model.getPlayers().size(),model.getPlayers());
+						//  smos.gamescoreUpdateMessage((byte) model.getPlayers().size(), model.getScores());	
+						//if(!model.playerCanChoose){
+						smos.selectCards((byte)0);
+						//}else{ smos.selectCards(model.getWhoCanChoose)}
+						//if(model.updated(yourNumber)){
+						smos.invalidSet((byte) 0, (byte) 0);
+						//}else{
+						//functionality for if someone just got a set.
+						//}
+					}else if(type == 13){
+						//model.aboutToCallSet(message[1]);
+					}else if(type == 15){
+						//if(model.callSet(message[1],message[2],message[3],message[4]){
+						//
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}else{
+			return; //the socket didn't connect, no need to do anything.
+		}
+	}
+}

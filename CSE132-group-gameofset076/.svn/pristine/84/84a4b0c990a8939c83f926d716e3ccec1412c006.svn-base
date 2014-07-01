@@ -1,0 +1,185 @@
+package lab5.client;
+
+import java.io.DataOutputStream;
+
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.Set;
+
+import lab5.model.Player;
+/**SetMsgOutputStream
+ * Writes messages for the gameOfSet based on the SetGame Protocol
+ */
+public class SetMsgOutputStream {
+	private DataOutputStream dos;
+	private boolean client;
+
+	public SetMsgOutputStream(DataOutputStream os, boolean isclient){
+		dos = os;
+		client = isclient;
+	}
+	public synchronized void helloMessage(String name, byte players) throws IOException{
+		if(client){
+			dos.writeByte('!');
+			dos.writeByte(2);//since we send different information this is a new type of message
+			byte[] letters = name.getBytes();
+			dos.writeShort(letters.length+1);//number of bytes to send
+			dos.writeByte(players); //desired number of players
+			for(byte b = 0; b<letters.length; b++){
+				dos.writeByte(letters[b]);//each letter of the name
+			}
+			System.out.println("written hello successfully");
+			dos.flush();
+		}
+	}
+	public void helloResponseMessage(byte playerNumber, byte versionNumber) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(1);
+			dos.writeShort(2);
+			dos.writeByte(versionNumber);//not sure why, but we send this out too.
+			dos.writeByte(playerNumber); //the client needs to store its player number upon receiving it
+			dos.flush();
+		}
+	}
+
+	public synchronized void giveMeInformation() throws IOException{
+		if(client){
+			dos.writeByte('!');
+			dos.writeByte(3);
+			dos.writeShort(0);
+			dos.flush();
+		}
+	}
+
+	public void waitingForPlayers(byte playersLeft) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(4);
+			dos.writeShort(1);
+			dos.writeByte(playersLeft);
+			dos.flush();
+		}
+	}
+
+	public void gamefieldUpdateMessage(byte cardsLeftInDeck, byte currentFieldSize, String[] cards) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(5);
+			dos.writeShort(2+(4*currentFieldSize));
+			dos.writeByte(cardsLeftInDeck);
+			dos.writeByte(currentFieldSize);
+			for(int i = 0; i<cards.length; i++){
+				String card = cards[i];
+				for(int j = 0; j <4; j++)
+				dos.writeByte(card.charAt(j));
+			}
+			dos.flush();
+		}	
+	}
+	public void gameplayerUpdateMessage(byte numPlayers, Set<Player> players) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(6);
+			short namesLength = 0;
+			String[] names = new String[numPlayers];
+			Iterator<Player> it = players.iterator();
+			while(it.hasNext()){
+				Player p = it.next();
+				names[(p.getID()-1)] = p.getName();
+				namesLength+= p.getName().length();
+			}
+			dos.writeShort((2*numPlayers)+namesLength);//one byte per player number, and one byte per space
+			for(byte i = 0; i< numPlayers; i++){
+				dos.writeByte(i+1); //player number
+				for(byte j = 0; i<numPlayers;i++){
+					byte[] letters = names[j].getBytes();
+					for(byte b = 0; b<letters.length; b++){
+						dos.writeByte(letters[b]);
+					}
+				}
+				dos.writeByte(' ');// separate each player for easy tokenizing.
+			}
+			dos.flush();
+		}
+	}
+	public void gamescoreUpdateMessage(byte numplayers, short[] scores) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(7);
+			dos.writeShort(numplayers*3);
+			for(byte i = 0; i< numplayers; i++){
+				dos.writeByte(i+1); //player number
+				dos.writeShort(scores[i]);//that player's score
+			}
+			dos.flush();
+		}
+
+	}
+
+	public synchronized void playerCallsSet(byte playerNumber) throws IOException{
+		if(client){
+			dos.writeByte('!');
+			dos.writeByte(13);
+			dos.writeShort(1);
+			dos.writeByte(playerNumber);
+			dos.flush();
+		}
+	}
+
+	/**Sends a message telling all clients which player can choose a number
+	 * 
+	 */
+	public void selectCards(byte playerNumber) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(14);
+			dos.writeShort(1);
+			dos.writeByte(playerNumber);//when clients read this, the one with this 
+			//number will then choose the cards
+			dos.flush();
+		}
+	}
+
+	public synchronized void setCall(byte playerNumber, byte[] indexes) throws IOException{
+		if(client){
+			dos.writeByte('!');
+			dos.writeByte(15);
+			dos.writeShort(4);
+			dos.writeByte(playerNumber);
+			dos.writeByte(indexes[0]);
+			dos.writeByte(indexes[1]);
+			dos.writeByte(indexes[2]);
+			dos.flush();
+		}
+	}
+
+	public synchronized void validSet(byte winningPlayerNumber)throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(17);
+			dos.writeShort(1);
+			dos.writeByte(winningPlayerNumber);
+			dos.flush();
+		}
+	}
+	public synchronized void invalidSet(byte playerNumber, byte reason) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(18);
+			dos.writeShort(2);
+			dos.writeByte(playerNumber);
+			dos.writeByte(reason);
+			dos.flush();
+		}
+	}
+	public synchronized void gameOver(byte winningNumber) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(60);
+			dos.writeShort(1);
+			dos.writeByte(winningNumber);
+			dos.flush();
+		}
+	}
+}

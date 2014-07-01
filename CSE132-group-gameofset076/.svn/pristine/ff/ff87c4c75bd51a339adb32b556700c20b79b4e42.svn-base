@@ -1,0 +1,81 @@
+CSE132 Cover Page for Lab 5a
+
+By submitting this assignment, you certify that you have read, 
+understood, and complied with the CSE 132 Collaboration Policy.
+
+Who worked on this lab?
+
+     Last Name           Last 3 Digits of student's ID
+
+1) Xie					614
+2) Tang					630
+3) Liu					497
+4) Epstein				338
+
+Tell us about your protocol:
+ 1 - hello response message (server to client)
+
+    game version - 1 byte
+    player number - 1 byte 
+
+2 - advanced hello message (client to server)
+	
+	desired number of players - 1 byte
+	name - UTF8 encoded string
+	
+3 - send me the standard information (client to server)
+	[no payload, but the server responds]
+	
+4- Number of players left (server to client)
+
+	Players left until game starts - 1 byte
+
+5 - gamefield update message (server to clients)
+
+    cards left in deck - 1 byte
+    current field size - 1 byte
+    cards - 4 bytes per card (index order of cards is referenced from the order in which they were sent from the server) 
+
+6 - gameplayer update message (server to clients)
+
+    number of players - 1 byte
+    per player: player number - 1 byte, player name - UTF8-encoded String 
+
+7 - gamescore update message (server to clients)
+
+    number of players - 1 byte
+    per player: player number - 1 byte, player score - 2-byte short 
+
+13 - player calls set (client to server)
+
+    player number - 1 byte 
+
+14 - select cards (server to client)
+
+    player number - 1 byte 
+
+15 - set call (client to server)
+
+    player number - 1 byte
+    card index - 3 cards, 1 byte per card (index is specified in message type 5) 
+
+17 - valid set (server to clients)
+
+    winning player number - 1 byte 
+
+18 - invalid set (server to clients)
+
+    player number - 1 byte(if 0, ignore)
+    reason - 1 byte (0 == ignore message, 1 == TIMEOUT, 2 == NOTASET)
+
+60 - game over (server to clients)
+
+    winning player number - 1 byte 
+
+
+
+
+
+If there is anything else we should know about your work on this assignment, 
+please explain here:
+

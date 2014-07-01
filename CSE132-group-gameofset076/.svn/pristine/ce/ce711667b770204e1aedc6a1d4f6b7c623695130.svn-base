@@ -1,0 +1,522 @@
+package lab5.client;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.EventQueue;
+import java.awt.Image;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.DefaultListModel;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLayeredPane;
+import javax.swing.JPanel;
+import javax.swing.Timer;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.JLabel;
+import javax.swing.JScrollPane;
+import javax.swing.JList;
+import javax.swing.SwingConstants;
+import java.awt.Font;
+import java.awt.SystemColor;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
+import java.io.IOException;
+import java.net.SocketException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import javax.swing.border.LineBorder;
+import javax.swing.JTextField;
+import javax.swing.JTextArea;
+import javax.swing.UIManager;
+
+public class SetGUI extends JFrame {
+	private  JLayeredPane contentPane; 
+	/*
+	 * Instance Variables, there's a lot of them so there are no "magic numbers"
+	 */
+	private int addCardsButtonX = 813;
+	private int addCardsButtonY = 214;
+	private int addCardsButtonWidth = 89;
+	private int addCardsButtonHeight = 37;
+	private int addCardsLblX = 380;
+	private int addCardsLblY = 454;
+	private int addCardsLblWidth = 205;
+	private int addCardsLblHeight = 14;
+	private int cardX = 0;
+	private int cardY = 0;
+	private int cardWidth = 96;
+	private int cardHeight = 137;
+	private int cardsNumAreaX = 813;
+	private int cardsNumAreaY = 159;
+	private int cardsNumAreaWidth = 89;
+	private int cardsNumAreaHeight = 37;
+	private int contentPaneX = 0;
+	private int contentPaneY = 0;
+	private int contentPaneWidth = 10 * cardWidth;
+	private int contentPaneHeight = 4 * cardHeight;
+	private int nameFieldX = 380;
+	private int nameFieldY = 131;
+	private int nameFieldWidth = 205;
+	private int nameFieldHeight = 20;
+	private int numCardsLblX = 752;
+	private int numCardsLblY = 134;
+	private int numCardsLblWidth = 150;
+	private int numCardsLblHeight = 14;
+	private int playerPaneX = 726;
+	private int playerPaneY =266;
+	private int playerPaneWidth =108;
+	private int playerPaneHeight =133;
+	private int pointPaneX = 833;
+	private int pointPaneY = 266;
+	private int pointPaneWidth = 68;
+	private int pointPaneHeight = 133;
+	private int setButtonX = 813;
+	private int setButtonY = 86;
+	private int setButtonWidth = 89;
+	private int setButtonHeight = 37;
+	private int startButtonX = 380;
+	private int startButtonY = 322;
+	private int startButtonWidth = 205;
+	private int startButtonHeight = 89;
+	private int startNumPlayerX = 380;
+	private int startNumPlayerY = 176;
+	private int startNumPlayerWidth = 205;
+	private int startNumPlayerHeight = 135;
+	private int titleX = 380;
+	private int titleY = 41;
+	private int titleWidth = 205;
+	private int titleHeight = 70;
+	private int border = 5;
+	
+	private Client client;
+	private boolean setPressed;
+	private int numberOfPlayers;
+	private int selectedSetCount;
+	private int cardsInPlay = 21; // temporary;
+	private JButton addCardsButton;
+	private JButton[] cardDisplay = new JButton[21];
+	private byte[] selectedArray = new byte[3];
+	private JButton setButton;
+	private JList listPlayers;
+	private JList listPlayersPoints;
+	private JList listStartPlayers;
+	private DefaultListModel listModelPlayers;
+	private DefaultListModel listModelScores;
+	private DefaultListModel listModelStartPlayers;
+	private JScrollPane playersPane;
+	private JScrollPane playersPointsPane;
+	private JTextArea numberOfCardsSelectedArea;
+	private JLabel addCardsUpdateLbl;
+	private JLabel lblBackground;
+	private JLabel lblTitle;
+	private JLabel lblNumberOfCards;
+	private JTextField nameField;
+	
+	
+
+	/**
+	 * Launch the application.
+	 */
+
+	// get number of cards button is visible at that point
+	//	card.setIcon(new ImageIcon(
+	//			SetGUI.class
+	//					.getResource("/lab5/client/mediumcards/1BlankCard.jpg")));
+
+	/*
+	 * So you guys have 2 choices here. We can either create a new thread where all that happens is the client listens to the server, or
+	 * we can just keep it as is where the gui only updates once the client receives a message.
+	 * 
+	 */
+	public void run() {
+		Thread t = new Thread() {
+			public void run() {
+				while(true) {
+					client.listenToServer(); //no server to listen to atm
+				}
+			}
+		};
+		t.start();
+		for(int i = 0; i<4; i++){
+			listModelPlayers.addElement("");
+			listModelScores.addElement("");
+		}
+		/*
+		 * Continuously gets the players names and their scores using the client 
+		 * (constantly update player names in the event that someone d/cs)
+		 * Updates cards on the field, assigning visual to buttons according to the client's set
+		 */
+		while(true){
+			if(client.isGameStarted()){ 
+				for (int i = 0; i<client.getPlayers().length; i ++) {
+					listModelPlayers.set(i,client.getPlayers()[i].getName());
+					listModelScores.set(i,client.getPlayers()[i].getScore());
+				}
+				if(client.getCardsInField()!= 0){
+					String[] currentCards = client.getCardArray();
+					for (int i = 0; i < client.getCardsInField(); i++) { 
+						cardDisplay[i].setIcon(new ImageIcon(SetGUI.class.getResource("/lab5/client/mediumcards/"+currentCards[i]+".jpg")));
+						cardDisplay[i].setVisible(true);
+					}for(int i = client.getCardsInField(); i <21 ; i++){ //visually handles buttons that are in excess
+						cardDisplay[i].setVisible(false);
+					}
+					validate();
+				}
+
+			}else{
+				validate();
+			}
+		}
+
+	}
+
+	/*
+	 * has the client constantly read from the server. updates the display
+	 * based on what the server says. client should have a model of what
+	 * cards are on the table, and the GUI should constantly update based on
+	 * that model. all of the pictures should be named after their four-byte
+	 * description, so you can easily access them. the client should also
+	 * have a model of the players and scores.
+	 */
+
+
+	/**
+	 * Create the frame.
+	 */
+	public SetGUI(Client c) {
+		client = c;
+		setResizable(false); //cannot expand game to keep background image looking spiffy 
+		
+		/*
+		 * Standard setup for contentPane, notice that it is a layered pane
+		 * so we are able to have a good-looking background
+		 */
+		getContentPane().setLayout(null);
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setBounds(contentPaneX, contentPaneY, contentPaneWidth, contentPaneHeight);		
+		contentPane = new JLayeredPane();
+		contentPane.setBorder(new EmptyBorder(border, border, border, border));
+		setContentPane(contentPane);
+		contentPane.setLayout(null);
+		
+		/*
+		 * Background inspired from LoZ Majora's Mask, covers entire content pane, but displayed on a layer
+		 * underneath everything else
+		 */
+		lblBackground = new JLabel();
+		lblBackground.setBounds(contentPaneX, contentPaneY, contentPaneWidth, contentPaneHeight);
+		contentPane.add(lblBackground);
+		contentPane.setLayer(lblBackground, -1); //-1 means it is the most "background" layer
+		lblBackground.setIcon(new ImageIcon(SetGUI.class.getResource("/lab5/client/mediumcards/backgroundrescaled.png")));
+		
+		/*
+		 * Fancy title text
+		 */
+		lblTitle = new JLabel("Set");
+		lblTitle.setForeground(Color.LIGHT_GRAY);
+		lblTitle.setFont(new Font("Mistral", Font.PLAIN, 60));
+		lblTitle.setHorizontalAlignment(SwingConstants.CENTER);
+		lblTitle.setBounds(titleX, titleY, titleWidth, titleHeight);
+		contentPane.add(lblTitle);
+		contentPane.setLayer(lblTitle, 0); //For all future cases, and including this one,
+										   //layer 0 is the standard above the background image
+
+		/*
+		 * Pane which allows selection of number of players
+		 */
+		final JScrollPane startGamePane = new JScrollPane();
+		startGamePane.setBounds(startNumPlayerX, startNumPlayerY, startNumPlayerWidth,
+				startNumPlayerHeight);
+		contentPane.add(startGamePane);
+		contentPane.setLayer(startGamePane, 0);
+		//model allows for modification of list information
+		listModelStartPlayers = new DefaultListModel();
+		listStartPlayers = new JList(listModelStartPlayers);
+		listStartPlayers.setBorder(new TitledBorder(null, "Number of Players",
+				TitledBorder.LEADING, TitledBorder.TOP, null, null));
+		startGamePane.setViewportView(listStartPlayers);
+		//Fills list with 1-4 players
+		for (int i = 1; i <= 4; i++) {
+			listModelStartPlayers.addElement(i);
+		}
+		
+		/*
+		 * Input text field for choosing player's name
+		 */
+		nameField = new JTextField();
+		nameField.setText("Type your name in this box");
+		nameField.setBounds(nameFieldX, nameFieldY, nameFieldWidth, nameFieldHeight);
+		contentPane.add(nameField);
+		contentPane.setLayer(nameField, 0);
+		nameField.setColumns(border*2);
+		
+		/*
+		 * Standard button, lets player start after number of players
+		 * is chosen
+		 */
+		final JButton start = new JButton();
+		start.setText("Start Game");
+		start.setBounds(startButtonX, startButtonY, startButtonWidth,
+				startButtonHeight);
+		contentPane.add(start);
+		contentPane.setLayer(start, 0);
+
+		/*
+		 * Upon press, sets title screen components invisible, main game components
+		 * visible, and checks to make sure a number of players are chosen, and that
+		 * the user has typed in a valid name
+		 */
+		start.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				if (listStartPlayers.getSelectedValue() != null) {
+					if(nameField.getText()!= "" && nameField.getText()!= "Type your name in this box"){
+					//will later use client to send number of players. Pretty useless without a server.
+//					numberOfPlayers = listStartPlayers.getSelectedValue();
+//					for (int i = 0; i < cardsInPlay; i++) { 
+//						cardDisplay[i].setVisible(true);
+//					}
+					
+						
+					client.setGameStarted(true); //starts game through client
+					System.out.println("phase 2 beginning");
+					//
+					// game components revealed
+					//
+					setButton.setVisible(true);
+					lblNumberOfCards.setVisible(true);
+					numberOfCardsSelectedArea.setVisible(true);
+					playersPointsPane.setVisible(true);
+					playersPane.setVisible(true);
+					addCardsButton.setVisible(true);
+					System.out.println("phase 3 beginning");
+					//
+					// title components hidden
+					//
+					start.setVisible(false);
+					startGamePane.setVisible(false);
+					lblTitle.setVisible(false);
+					nameField.setVisible(false);
+					
+					client.sayHello(nameField.getText(), (byte) (listStartPlayers.getSelectedIndex()+1));
+					System.out.println("start complete");
+					}else{
+						System.out.println("You need to type your name first");
+					}
+				} else {
+					System.out
+					.println("You need to select the number of players");
+				}
+
+			}
+
+		});
+		
+		/*
+		 * Set Button that allows player to pick cards 
+		 * after pressing in order to attempt a set
+		 */
+		setButton = new JButton("Call Set");
+		setButton.setBounds(setButtonX, setButtonY, setButtonWidth, setButtonHeight);
+		contentPane.add(setButton);
+		contentPane.setLayer(setButton, 0);
+
+		//changes state of setPressed to true, allowing players to attempt
+		//a set
+		setButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				if (!setPressed) {
+					setPressed = true;
+					setButton.setText("Pick");
+				}
+			}
+		});
+		
+		/*
+		 * Counter section for number of cards selected. 
+		 * We find it difficult to indicate which cards have been selected,
+		 * thus this helps you to keep track
+		 */
+		numberOfCardsSelectedArea = new JTextArea();
+		numberOfCardsSelectedArea.setEditable(false);
+		numberOfCardsSelectedArea.setBounds(cardsNumAreaX, cardsNumAreaY, cardsNumAreaWidth, cardsNumAreaHeight);
+		contentPane.add(numberOfCardsSelectedArea);
+		contentPane.setLayer(numberOfCardsSelectedArea, 0);
+		
+		/*
+		 * Label to indicate what the counter is keeping track of
+		 */
+		lblNumberOfCards = new JLabel("Number of Cards Selected");
+		lblNumberOfCards.setForeground(Color.LIGHT_GRAY);
+		lblNumberOfCards.setBounds(numCardsLblX, numCardsLblY, numCardsLblWidth, numCardsLblHeight);
+		contentPane.add(lblNumberOfCards);
+		contentPane.setLayer(numberOfCardsSelectedArea, 0);
+		
+		/*
+		 * Pane which keeps track of players in the game
+		 */
+		playersPane = new JScrollPane();
+		playersPane.setBounds(playerPaneX, playerPaneY, playerPaneWidth, playerPaneHeight);
+		contentPane.add(playersPane);
+		contentPane.setLayer(playersPane, 0);
+		//list model allows for easy modification
+		listModelPlayers = new DefaultListModel();
+		listPlayers = new JList(listModelPlayers);
+		listPlayers.setBorder(new TitledBorder(null, "Players", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+		playersPane.setViewportView(listPlayers);
+		/*
+		 * Pane which keeps track of score
+		 */
+		playersPointsPane = new JScrollPane();
+		playersPointsPane.setBounds(pointPaneX, pointPaneY, pointPaneWidth, pointPaneHeight);
+		contentPane.add(playersPointsPane);
+		contentPane.setLayer(playersPointsPane, 0);
+		//list model allows for easy change
+		listModelScores = new DefaultListModel();
+		listPlayersPoints = new JList(listModelScores);
+		playersPointsPane.setViewportView(listPlayersPoints);
+		listPlayersPoints.setBorder(new TitledBorder(UIManager.getBorder("TitledBorder.border"), "Scores", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+
+		/*
+		 * Label at the bottom of the screen which will be displayed in the event that a player has requested to 
+		 * add a row.
+		 */
+		addCardsUpdateLbl = new JLabel("A player has requested to add cards");
+		addCardsUpdateLbl.setHorizontalAlignment(SwingConstants.CENTER);
+		addCardsUpdateLbl.setForeground(Color.LIGHT_GRAY);
+		addCardsUpdateLbl.setBounds(addCardsLblX, addCardsLblY, addCardsLblWidth, addCardsLblHeight);
+		contentPane.add(addCardsUpdateLbl);
+		contentPane.setLayer(addCardsUpdateLbl, 0);
+		
+		/*
+		 * Button which can be pressed to ask for a column addition
+		 */
+		addCardsButton = new JButton("Add Cards");
+		addCardsButton.setBounds(addCardsButtonX, addCardsButtonY, addCardsButtonWidth, addCardsButtonHeight);
+		contentPane.add(addCardsButton);
+		contentPane.setLayer(addCardsButton, 0);	
+		//Upon press, sends message through client to request for a row addition
+		addCardsButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// FIXME Auto-generated method stub
+				
+			}
+		});
+		
+		//
+		//All of the game components are set invisible until the set button is pressed
+		//
+		setButton.setVisible(false);
+		lblNumberOfCards.setVisible(false);
+		numberOfCardsSelectedArea.setVisible(false);
+		playersPointsPane.setVisible(false);
+		playersPane.setVisible(false);
+		addCardsUpdateLbl.setVisible(false);
+		addCardsButton.setVisible(false);
+		//cards are generated (invisible as well)
+		generateCards();
+	}
+	/*
+	 * Generates cards and their button functionality
+	 */
+	public void generateCards(){
+		try {	
+			int index = 0;
+			for (int j = 0; j < 7; j++) { // iterates through 3 rows and 7 columns, creating 21 buttons
+				for (int i = 0; i < 3; i++) {
+					final JButton card = new JButton();
+					card.setBounds(cardX, cardY, cardWidth, cardHeight);
+					cardY += cardHeight + border; //shift down 1 row
+					contentPane.add(card);
+					contentPane.setLayer(card, 0); 
+					cardDisplay[index] = card; //adds button to the array of buttons, for easy access
+					final byte temp = (byte) index; //b is the "index" of the card (from 0-20, up-down left-right priority) 
+					/*
+					 * ActionListener takes into account if the card is already part of the "selectedset"
+					 * ands deals with it through booleans. If a button is pressed and completes 3 cards, the set
+					 * is immediately sent and everything is reset
+					 */
+					card.addActionListener(new ActionListener() {
+						@Override
+						public void actionPerformed(ActionEvent arg0) {
+							boolean deleting = false; 
+							for(byte i = 0; i < 3; i++){
+								if(selectedArray[i] == temp){ //if card has been selected before
+									selectedArray[i] = 34;
+									deleting = true; //card skips next step
+									card.setOpaque(false);
+									selectedSetCount--;
+									numberOfCardsSelectedArea.setText("" + selectedSetCount);
+								}
+							}
+							if(!deleting){ //if card has not been selected yet
+								boolean added = false;
+								for(byte i = 0; i < 3; i++){ //iterates through selected cards,
+															 //if space is empty (set to 34), then
+															 //cards' index is added
+									if(!added){
+										if(selectedArray[i] == 34){
+											selectedArray[i] = temp;
+											added = true;
+											card.setOpaque(true);
+											selectedSetCount++;
+											numberOfCardsSelectedArea.setText("" + selectedSetCount);
+										}
+									}
+								}
+							}					
+							/*
+							 * Submits full set by index
+							 */
+							if (selectedArray[0]!= 34 &&selectedArray[1]!= 34 &&selectedArray[2]!= 34) { 
+								//resets
+								setPressed = false;
+								setButton.setText("Call Set");
+								selectedSetCount = 0;
+								try {
+									client.getSmos().setCall(client.getPlayerNumber(), selectedArray);
+								}catch (SocketException e) {
+									System.exit(-1);
+									System.out.println("socket exception");
+								} catch (IOException e) {
+									// FIXME Auto-generated catch block
+									e.printStackTrace();
+								}
+								//and now we reset the selected array
+								selectedArray[0] = 34;
+								selectedArray[1] = 34;
+								selectedArray[2] = 34;
+							}
+						}
+
+					});
+					index++; //advances the index
+					card.setVisible(false); //card is set invisible
+				}
+				cardX += cardWidth + border; //iterates through columns  
+				cardY = 0; //resets Y value
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+////DEAD REMNANTS OF trying to indicate that the card has been selected, may come in use later
+//	card.setBorder(new LineBorder(Color.YELLOW, 50, true));
+
+//  card.setBorder(new LineBorder(Color.GRAY, 0, true));
+}

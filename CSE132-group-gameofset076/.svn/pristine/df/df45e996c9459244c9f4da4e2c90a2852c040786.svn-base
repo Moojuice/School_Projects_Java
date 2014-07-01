@@ -1,0 +1,140 @@
+package lab5.client;
+
+import java.io.DataOutputStream;
+import java.io.IOException;
+
+public class SetMsgOutputStream {
+	private DataOutputStream dos;
+	private boolean client;
+
+	public SetMsgOutputStream(DataOutputStream os, boolean isclient){
+		dos = os;
+		client = isclient;
+	}
+	public void helloMessage(String name) throws IOException{
+		if(client){
+			dos.writeByte('!');
+			dos.writeByte(0);
+			dos.writeUTF(name);
+		}
+	}
+	public void helloResponseMessage(byte playerNumber, byte versionNumber) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(1);
+			dos.writeShort(2);
+			dos.writeByte(versionNumber);//not sure why, but we send this out too.
+			dos.writeByte(playerNumber); //the client needs to store its player number upon receiving it
+		}
+	}
+	public void gamefieldUpdateMessage(byte cardsLeftInDeck, byte currentFieldSize, String cards) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(5);
+			dos.writeShort(2+cards.length());
+			dos.writeByte(cardsLeftInDeck);
+			dos.writeByte(currentFieldSize);//currentFieldSize should never be 0.
+			for(int i = 0; i<cards.length(); i++){
+				dos.writeByte(cards.charAt(i));
+			}
+		}	
+	}
+	public void gameplayerUpdateMessage(byte numplayers, String[] names) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(6);
+			short namesLength = 0;
+			for(byte j = 0; j <numplayers; j++){
+				namesLength += names[j].length();//one byte per letter, since names should be ASCII
+			}
+			dos.writeShort((2*numplayers)+namesLength);//one byte per player number, and ony byte per space
+			for(byte i = 0; i< numplayers; i++){
+				dos.writeByte(i+1); //player number
+				for(byte j = 0; i<numplayers;i++){
+					byte[] letters = names[j].getBytes();
+					for(byte b = 0; b<letters.length; b++){
+						dos.writeByte(letters[b]);
+					}
+				}
+				dos.writeByte(' ');// separate each player for easy tokenizing.
+			}
+			
+		}
+	}
+	public void gamescoreUpdateMessage(byte numplayers, Short[] scores) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(7);
+			dos.writeShort(numplayers*3);
+			for(byte i = 0; i< numplayers; i++){
+				dos.writeByte(i+1); //player number
+				dos.writeShort(scores[i]);//that player's score
+			}
+
+		}
+
+	}
+	
+	public void playerCallsSet(byte playerNumber) throws IOException{
+		if(client){
+			dos.writeByte('!');
+			dos.writeByte(13);
+			dos.writeShort(1);
+			dos.writeByte(playerNumber);
+		}
+	}
+	
+	/*
+	This is sent to all clients.
+	if a client recieves this, but isn't player "playerNumber", then 
+	they can't select a set. A client needs to keep track of its own number.
+	*/
+	public void selectCards(byte playerNumber) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(14);
+			dos.writeShort(1);
+			dos.writeByte(playerNumber);//when clients read this, the one with this 
+			//number will then choose the cards
+		}
+	}
+	/*the array of bytes should always be 3 long.This should be taken care of on the GUI/Client.
+	 * You're not allowed to send a request unless exactly 3 cards are selected.
+	 */
+	public void setCall(byte playerNumber, byte[] indexes) throws IOException{
+		if(client){
+			dos.writeByte('!');
+			dos.writeByte(15);
+			dos.writeShort(1+indexes.length);
+			dos.writeByte(playerNumber);
+			dos.writeByte(indexes[0]);
+			dos.writeByte(indexes[1]);
+			dos.writeByte(indexes[2]);
+		}
+	}
+	public void validSet(byte winningPlayerNumber)throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(17);
+			dos.writeShort(1);
+			dos.writeByte(winningPlayerNumber);
+		}
+	}
+	public void invalidSet(byte playerNumber, byte reason) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(18);
+			dos.writeShort(2);
+			dos.writeByte(playerNumber);
+			dos.writeByte(reason);
+		}
+	}
+	public void gameOver(byte winningNumber) throws IOException{
+		if(!client){
+			dos.writeByte('!');
+			dos.writeByte(60);
+			dos.writeShort(1);
+			dos.writeByte(winningNumber);
+		}
+	}
+}

@@ -1,0 +1,154 @@
+package lab5.client;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import lab5.model.Player;
+
+/**
+ *  Client
+ *   Player program for game of Set.
+ *
+ *   Author: COMPLETE THIS
+ *   Course: CSE 132
+ *   Lab:    4
+ */
+
+public class Client {
+	public byte playerNumber;
+	public byte versionNumber;
+	public byte cardsLeft;
+	public byte cardsInField;
+	public Player[] players;
+	public String[] cardArray;
+	public SetMsgOutputStream smos;
+	public SetMsgInputStream smis;
+	private boolean canSelectCards;
+	// Complete the Client class
+
+	public Client(){
+		versionNumber = 1;
+	}
+	public void run(){
+		try {
+			Socket s = new Socket("localhost", 10501);
+			DataOutputStream dos = new DataOutputStream(s.getOutputStream());
+			DataInputStream dis = new DataInputStream(s.getInputStream());
+			smis = new SetMsgInputStream(dis);
+			smos = new SetMsgOutputStream(dos, true);
+			while(true){
+				String input = smis.getInput();
+				byte[] bytes = input.getBytes();
+				if(bytes[0]==1){	//Server recieves hello message, and we recieve version and playernumber
+					if (versionNumber!= bytes[1]){
+						System.out.println("Client is out of date");
+						System.exit(-1);
+						return;
+					}
+					playerNumber = bytes[2];
+					//smos.huehuehuehue(); //what.
+				}
+				else if(bytes[0]==5){	//game field update
+					cardsLeft = bytes[1];
+					cardsInField = bytes[2];
+					ArrayList<Byte> cards = new ArrayList<Byte>();
+					for(int i =3; i<bytes.length; i++){
+						cards.add(bytes[i]);
+					}
+				}
+
+				else if(bytes[0] ==6){	// gameplayer update
+					byte numPlayers = bytes[1];
+					int index = 2;
+					players = new Player[numPlayers];
+
+					for(int i=0; i<numPlayers; i++){
+						byte playerNum = bytes[index];
+						index++;
+						String name = "";
+						while (bytes[index] != ' ') {
+							name += (char)bytes[index];
+							index++;
+						}
+						index++;
+						
+						//Create player based on name and ID and add to player array
+						Player person = new Player(name, playerNum);
+						players[playerNum-1] = person;
+					}
+				}
+				else if(bytes[0] ==7){	// gamescore update
+					byte numPlayers = bytes[1];
+
+					int index = 2;
+					
+					for(int i=0; i<numPlayers; i++){
+						byte playerNum = bytes[index];
+						index++;
+						byte[] scoreBytes = {bytes[index], bytes[index+1]};
+						short score = Short.decode(String.valueOf(scoreBytes));
+						index+=2;
+						
+						players[playerNum-1].setScore(score);
+					
+
+					}
+				}
+				
+				else if (bytes[0] == 14) { // select cards
+					byte playerNum = bytes[1];
+					System.out.println("Player " + players[playerNum-1] + " is selecting cards");
+					if (this.playerNumber == playerNum) {
+						canSelectCards = true;
+					}
+				}
+
+				else if (bytes[0] == 17) { // valid set
+					byte playerNum = bytes[1];
+					System.out.println("Player " + players[playerNum-1] + " has found a valid set!");
+					canSelectCards = false;
+				}
+
+				else if (bytes[0] == 18) { // invalid set
+					byte playerNum = bytes[1];
+					byte reason = bytes[2];
+					System.out.println("Player " + players[playerNum-1] + " has not found a valid set");
+					if (reason == 1) {
+						System.out.println("Reason: Timeout");
+					}
+					else if (reason == 2) {
+						System.out.println("Reason: Not a set");
+					}
+					canSelectCards = false;
+				}
+
+				else if(bytes[0] ==60){ // game over
+					byte playerNum = bytes[1];
+					System.out.println("Player " + players[playerNum-1] + " has won the game!");
+				}
+			}
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	/**
+	 * Entry point for lab5 client.
+	 * @param args unused
+	 */
+	public void beginGame(String name){
+
+	}
+
+	public static void main(String[] args) {
+		Client c = new Client();
+		c.run();
+	}
+
+}

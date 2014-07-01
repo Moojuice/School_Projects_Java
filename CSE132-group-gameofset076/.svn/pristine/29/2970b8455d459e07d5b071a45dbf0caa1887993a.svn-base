@@ -1,0 +1,50 @@
+package lab5;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+import lab5.view.GameQueuebe;
+import lab5.view.ServantThread;
+
+
+/**NewServerMain
+ *  Listens for clients, and assigns them a servantThread
+ * 
+ *  Author: Jeremy Tang, Edward Xie, Ben Epstein, Kyle Liu
+ *  Course: CSE 132
+ *  Lab:    4
+ */
+public class NewServerMain implements Runnable {
+	ServerSocket ss;
+	GameQueuebe[] gameMasters;
+	
+	public NewServerMain() throws IOException{
+		ss = new ServerSocket(10501);
+		gameMasters = new GameQueuebe[4];
+		gameMasters[0] = new GameQueuebe(1);
+		gameMasters[1] = new GameQueuebe(2);
+		gameMasters[2] = new GameQueuebe(3);
+		gameMasters[3] = new GameQueuebe(4);
+	}
+
+	@Override
+	public void run() {
+		while (true){//Assuming proper hardware, this can run as many games and talk with as many clients as you want.
+			try{
+				Socket s = ss.accept();
+				System.out.println("got a new client!");
+				ServantThread servant = new ServantThread(gameMasters, s);
+				servant.start();
+			}catch(IOException e){
+				e.printStackTrace();
+			}
+		}
+
+	}
+	public static void main(String[] args) throws IOException{
+		NewServerMain m = new NewServerMain();
+		m.run();
+	}
+
+}

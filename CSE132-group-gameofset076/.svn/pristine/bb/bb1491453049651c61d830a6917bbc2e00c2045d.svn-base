@@ -1,0 +1,35 @@
+package lab5.client;
+
+import java.io.DataInputStream;
+import java.io.IOException;
+
+public class SetMsgInputStream {
+	private DataInputStream in;
+
+	public SetMsgInputStream(DataInputStream input){
+		in = input;
+	}
+	/**
+	 * Reads from the input stream,and returns a set
+	 * message as a string that can be tokenized.
+	 * @return 
+	 * @throws IOException
+	 */
+	public String getInput() throws IOException{
+		String message = "";
+		byte b = 'p';
+		while(b!= '!'){
+			b = in.readByte();
+		}
+		b = in.readByte();
+		message+= b;
+		short s = in.readShort();
+		while(s>0){
+			b = in.readByte();
+			message+=b;
+			s--;
+		}
+		return message;
+	}
+	
+}

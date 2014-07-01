@@ -1,0 +1,74 @@
+package lab5.view;
+
+import java.net.Socket;
+
+import lab5.model.SetGame;
+/**GameQueue
+ *  Given a maximum number of players, 
+ * 
+ *  Author: Jeremy Tang, Edward Xie, Ben Epstein, Kyle Liu
+ *  Course: CSE 132
+ *  Lab:    4
+ */
+public class GameQueuebe {
+
+	public byte maxPlayers;
+	public byte currentPlayers;
+	public SetGame model;
+	public String[] clients;
+	public Object lock;
+
+
+	public GameQueuebe(int i){
+		lock = new Object();
+		clients = new String[i];
+		maxPlayers = (byte) i;
+		currentPlayers = 0;
+		model = new SetGame();
+	}
+
+	public boolean addClient(String s){
+		boolean added = false;
+		for(byte i = 0; i < currentPlayers; i++){
+			if(!added){
+				if(clients[i] == ""){
+					clients[i] = s;
+					added = true;
+					currentPlayers++;
+				}
+			}
+		}
+		if(currentPlayers == maxPlayers){
+			for(byte i = 0; i < currentPlayers; i++){
+				model.addPlayer(clients[i]);
+				clients[i] = "";
+			}
+			currentPlayers = 0;
+			model = new SetGame();
+			return true;
+		}
+		return false;
+	}
+	public void removeClient(String s){
+		for(byte i = 0; i < currentPlayers; i++){
+			if(clients[i]== s){
+				clients[i] = "";
+			}
+		}
+	}
+	public byte getPlayersLeft(){
+		return (byte) (maxPlayers - currentPlayers);
+	}
+	
+	public String[] getClients(){
+		return clients;
+	}
+
+	public SetGame getModel(){
+		return model;
+	}
+
+	public synchronized Object getLock(){
+		return lock;
+	}
+}

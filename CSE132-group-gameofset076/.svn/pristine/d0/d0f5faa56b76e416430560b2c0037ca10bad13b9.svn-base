@@ -1,0 +1,252 @@
+package lab5.client;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import lab5.model.Player;
+/*
+ * Quick notes about changes to be made
+ * 1: client should have a function for sending every type of output message. There's no good reason
+ * for the GUI to handle the exception every time.
+ * 2: GUI is a work in progress. Make sure you're the only one working on it
+ * 3: If you can get the buttons to do something cool when they're selected then you rock.
+ * good luck-
+ * Ben
+ */
+/**
+ *  Client
+ *   Player program for game of Set.
+ *
+ *   Author: Jeremy Tang, Edward Xie, Ben Epstein, Kyle Liu
+ *   Course: CSE 132
+ *   Lab:    4
+ */
+
+public class Client {
+	private byte playerNumber;
+	private byte versionNumber;
+	private byte cardsLeft;
+	private byte cardsInField;
+	private Player[] players;
+	private String[] cardArray;
+	private SetMsgOutputStream smos;
+	private SetMsgInputStream smis;
+	private boolean canSelectCards;
+	private boolean gameStarted;
+
+	private String name;
+
+	public Client(){
+		versionNumber = 1;
+		// Placeholder cards
+		String[] tempCards = {"bdf1","bos3","bos1","gds2","gss3","rdo1","rso2","rss3","bos2","gso2","rss1","rss2"};
+		cardArray = tempCards;
+		cardsInField = (byte)cardArray.length;
+		try {
+			Socket s = new Socket("localhost", 10501);
+			DataOutputStream dos = new DataOutputStream(s.getOutputStream());
+			DataInputStream dis = new DataInputStream(s.getInputStream());
+			smis = new SetMsgInputStream(dis);
+			smos = new SetMsgOutputStream(dos, true);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	public void run(){
+		SetGUI frame = new SetGUI(this);
+		frame.setVisible(true);
+		frame.run();
+	}
+	public void listenToServer(){
+		try{
+			String input = smis.getInput();
+			byte[] bytes = input.getBytes();
+			if(bytes[0]==1){	//Server receives hello message, and we receive version and playernumber
+				if (versionNumber!= bytes[1]){
+					System.out.println("Client is out of date");
+					System.exit(-1);
+					return;
+				}
+				playerNumber = bytes[2];
+				//smos.huehuehuehue(); //what.
+			}
+			else if(bytes[0]==5){	//game field update
+				cardsLeft = bytes[1];
+				cardsInField = bytes[2];
+				ArrayList<Byte> cards = new ArrayList<Byte>();
+				for(int i =3; i<bytes.length; i++){
+					cards.add(bytes[i]);
+				}
+			}
+
+			else if(bytes[0] ==6){	// gameplayer update
+				byte numPlayers = bytes[1];
+				int index = 2;
+				players = new Player[numPlayers];
+
+				for(int i=0; i<numPlayers; i++){
+					byte playerNum = bytes[index];
+					index++;
+					String name = "";
+					while (bytes[index] != ' ') {
+						name += (char)bytes[index];
+						index++;
+					}
+					index++;
+
+					//Create player based on name and ID and add to player array
+					Player person = new Player(name, playerNum);
+					players[playerNum-1] = person;
+				}
+			}
+			else if(bytes[0] ==7){	// gamescore update
+				byte numPlayers = bytes[1];
+
+				int index = 2;
+
+				for(int i=0; i<numPlayers; i++){
+					byte playerNum = bytes[index];
+					index++;
+					byte[] scoreBytes = {bytes[index], bytes[index+1]};
+					short score = Short.decode(String.valueOf(scoreBytes));
+					index+=2;
+
+					players[playerNum-1].setScore(score);
+
+
+				}
+			}
+
+			else if (bytes[0] == 14) { // select cards
+				byte playerNum = bytes[1];
+				System.out.println("Player " + players[playerNum-1] + " is selecting cards");
+				if (this.playerNumber == playerNum) {
+					canSelectCards = true;
+				}
+			}
+
+			else if (bytes[0] == 17) { // valid set
+				byte playerNum = bytes[1];
+				System.out.println("Player " + players[playerNum-1] + " has found a valid set!");
+				canSelectCards = false;
+			}
+
+			else if (bytes[0] == 18) { // invalid set
+				byte playerNum = bytes[1];
+				byte reason = bytes[2];
+				System.out.println("Player " + players[playerNum-1] + " has not found a valid set");
+				if (reason == 1) {
+					System.out.println("Reason: Timeout");
+				}
+				else if (reason == 2) {
+					System.out.println("Reason: Not a set");
+				}
+				canSelectCards = false;
+			}
+
+			else if(bytes[0] ==60){ // game over
+				byte playerNum = bytes[1];
+				cardsInField = 0;//we'll have this be a signal that the gui doesn't have to run at the moment.
+				setGameStarted(false);
+				System.out.println("Player " + players[playerNum-1] + " has won the game!");
+			}
+		} catch(SocketException e){
+			System.out.println("disconnected");
+		}catch (IOException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	//Auto-generated get/set methods for the variables
+	public SetMsgOutputStream getSmos() {
+		return smos;
+	}
+	public void setSmos(SetMsgOutputStream smos) {
+		this.smos = smos;
+	}
+	public SetMsgInputStream getSmis() {
+		return smis;
+	}
+	public void setSmis(SetMsgInputStream smis) {
+		this.smis = smis;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public byte getPlayerNumber() {
+		return playerNumber;
+	}
+	public void setPlayerNumber(byte playerNumber) {
+		this.playerNumber = playerNumber;
+	}
+	public byte getVersionNumber() {
+		return versionNumber;
+	}
+	public void setVersionNumber(byte versionNumber) {
+		this.versionNumber = versionNumber;
+	}
+	public byte getCardsLeft() {
+		return cardsLeft;
+	}
+	public void setCardsLeft(byte cardsLeft) {
+		this.cardsLeft = cardsLeft;
+	}
+	public byte getCardsInField() {
+		return cardsInField;
+	}
+	public void setCardsInField(byte cardsInField) {
+		this.cardsInField = cardsInField;
+	}
+	public Player[] getPlayers() {
+		//return players;
+		Player[] gay = new Player[4]; //TEMPORARY FOR DISPLAY TESTING PURPOSES ONLY
+		gay[0] = new Player("homo", 0);
+		gay[1] = new Player("fag", 1);
+		gay[2] = new Player("weeaboo", 2);
+		gay[3] = new Player("mammaaa miaa", 3);
+		return gay;
+	}
+	public void setPlayers(Player[] players) {
+		this.players = players;
+	}
+	public String[] getCardArray() {
+		return cardArray;
+	}
+	public void setCardArray(String[] cardArray) {
+		this.cardArray = cardArray;
+	}
+	public boolean isCanSelectCards() {
+		return canSelectCards;
+	}
+	public void setCanSelectCards(boolean canSelectCards) {
+		this.canSelectCards = canSelectCards;
+	}
+	public boolean isGameStarted() {
+		return gameStarted;
+	}
+	public void setGameStarted(boolean gameStarted) {
+		this.gameStarted = gameStarted;
+	}
+
+	/**
+	 * Entry point for lab5 client.
+	 * @param args unused
+	 */
+	public static void main(String[] args) {
+		Client c = new Client();
+		c.run();
+	}
+
+}

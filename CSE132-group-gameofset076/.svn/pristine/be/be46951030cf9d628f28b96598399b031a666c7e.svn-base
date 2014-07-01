@@ -1,0 +1,341 @@
+package lab5.model;
+
+import java.beans.PropertyChangeSupport;
+import java.util.*;
+
+import lab5.model.Player;
+
+/**SetGame
+ *  Manages the actual game of Set
+ * 
+ *  Author: Jeremy Tang, Edward Xie, Ben Epstein, Kyle Liu
+ *  Course: CSE 132
+ *  Lab:    4
+ */
+public class SetGame {
+	private Set<Player> players;	// set of players in the game
+	private int numPlayers; 		// number of players since game started
+	private int numPlayersRemoved;
+	private String[] cardsInDeck;  
+	private String[] cardsInField; 
+	private int currentCardIndex;	// index of the top card in the deck
+	private int cardsOnField;
+	private int playerCallingSet;
+	private final int setTimeOut = 10000;
+	private ArrayList<Byte> playersAskingDraw;
+	private Timer t;
+	PropertyChangeSupport pcs;
+	private boolean gameRunning;
+	private int timesSetCalled;
+
+	public SetGame() {
+		players = new HashSet<Player>();
+		numPlayers = 0;
+		numPlayersRemoved = 0;
+		cardsInDeck = new String[81];
+		pcs = new PropertyChangeSupport(this);
+		
+		// Make a shuffled deck of Set cards
+		char[] colors = {'b', 'g', 'r'};
+		char[] shapes = {'d', 'o', 's'};
+		char[] fills = {'f', 'o', 's'};
+		char[] numbers = {'1', '2', '3'};
+		for(int a=0; a<colors.length; a++){
+			for(int b=0; b<shapes.length; b++){
+				for(int c=0; c<fills.length; c++){
+					for(int d=0; d<numbers.length; d++){
+						char[] card = {colors[a], shapes[b], fills[c], numbers[d]};
+						cardsInDeck[a*27+b*9+c*3+d] = String.valueOf(card);
+					}
+				}
+			}
+		}
+		Collections.shuffle(Arrays.asList(cardsInDeck));
+//		cardsInDeck = Arrays.copyOf(cardsInDeck, 15);
+		
+		// Draw the first 12 cards from the deck to create the field of cards
+		cardsInField = new String[21];
+		for (int i=0; i<12; i++) {
+			cardsInField[i] = cardsInDeck[i];
+		}
+		currentCardIndex = 12;
+		cardsOnField = 12;
+		
+		playerCallingSet=0;
+		timesSetCalled = 0;
+		playersAskingDraw = new ArrayList<Byte>();
+		gameRunning = true;
+		t = new Timer();
+	}
+
+	/**
+	 * Adds a player to the set of Players playing set.
+	 * @param p player to be added to set of Players
+	 */
+	public synchronized void addPlayer(String player) {
+		numPlayers++;
+		Player p = new Player(player,numPlayers);
+		if (players.contains(p)) {
+			numPlayers--;
+			return;
+		}
+		System.out.println(player+" has joined the game");
+		players.add(p);
+	}
+	
+	/**
+	 * Removes a player from the set of Players playing set.
+	 * @param p player to be removed from set of Players
+	 */
+	public synchronized void removePlayer(String player, byte id) {
+		Player temp = new Player(player, id);
+		for (Player p : players) {
+			if (p.equals(temp)) {
+				temp = p;
+			}
+		}
+		if (temp != null) {
+			//FIXME
+			//With this, at least it shouldn't break. 
+			players.remove(temp);
+			players.add(new Player("Disconnected",id));
+			numPlayersRemoved++;
+			if (numPlayersRemoved >= numPlayers) {
+				gameRunning = false;
+			}
+		}
+		pcs.firePropertyChange("removed", false, true);
+	}
+	
+	/**
+	 * Have a player call Set so that only they can select cards for a Set.
+	 * Times out the player after setTimeOut seconds (should be 15 seconds in this case)
+	 * @param playerNum
+	 * @return whether or not the player can call set.
+	 */
+	public synchronized boolean callSet(int playerNum) {
+		if (playerCallingSet == 0) {
+			timesSetCalled++;
+			final int currentTimesSetCalled = timesSetCalled;
+			playerCallingSet = playerNum;
+			pcs.firePropertyChange("playerCallingSet", false, true);
+			
+			// Time out the player if he/she takes more than 15 seconds to call a set
+			t.schedule(new TimerTask() {
+				public void run() {
+					if (currentTimesSetCalled == timesSetCalled) {
+						playerCallingSet = 0;
+						pcs.firePropertyChange("playerCallingSet", false, true);
+					}
+				}
+			}, setTimeOut);
+			System.out.println("Player calling set is " + playerCallingSet);
+			return true;
+		}
+		return false;		
+	}
+
+	/**
+	 * Checks if three cards are a set. If they are, those cards are removed from the field
+	 * and replaced, and the player who called the set has his/her score increased.
+	 * @param i1 index of first card
+	 * @param i2 index of second card
+	 * @param i3 index of third card
+	 * @param playerNum player who submitted the set
+	 * @return
+	 */
+	public synchronized byte isSet(byte i1, byte i2, byte i3, byte playerNum) {
+		timesSetCalled++;
+		System.out.println("isSet called");
+		//return codes
+		//0: valid set
+		//1: timeout
+		//2: not a set
+		if (playerNum != playerCallingSet){
+			return 1; // timeout
+		}
+		
+		// Check if the three cards are a set.
+		byte[] card1 = cardsInField[i1].getBytes();
+		byte[] card2 = cardsInField[i2].getBytes();
+		byte[] card3 = cardsInField[i3].getBytes();
+		for(int i =0; i<card1.length; i++){
+			if (!((card1[i] == card2[i] && card2[i] == card3[i]) || card1[i] != card2[i]
+					&& card2[i] != card3[i] && card1[i] != card3[i])) {
+				System.out.println("not a set");
+				playerCallingSet = 0;
+				return 2; // not a set;
+			}
+		}
+		
+		System.out.println("SET!");
+		
+		playersAskingDraw.clear();
+		
+		// Add to the score of the player who called Set.
+		for (Player p : players) {
+			if (p.getID()==playerCallingSet) {
+				p.setScore(p.getScore()+1);
+			}
+		}
+		playerCallingSet = 0;
+		
+		int[] cardsToReplace = {i1, i2, i3};
+		Arrays.sort(cardsToReplace);
+		if (cardsOnField <= 12 && currentCardIndex < cardsInDeck.length) { // If there are 12 or fewer cards on the field, draw from the deck
+			for(int i: cardsToReplace){
+				cardsInField[i] = cardsInDeck[currentCardIndex];
+				currentCardIndex++;
+			}
+		}
+		else { // Remove the Set's cards from the field and move cards with indices greater than 12
+			   // to the indices of the Set's cards.
+			int ctrIndex = 0;
+			for (int i=0; i<cardsToReplace.length; i++) {
+				cardsInField[cardsToReplace[i]] = null;
+			}
+			for (int i=cardsOnField-1; i>=cardsOnField-3; i--) {
+				if (cardsInField[i] != null) {
+					cardsInField[cardsToReplace[ctrIndex]] = cardsInField[i];
+					cardsInField[i] = null;
+					ctrIndex++;
+				}
+			}
+			cardsOnField -= 3;
+		}
+		pcs.firePropertyChange("cards", true, false);
+		pcs.firePropertyChange("score", true, false);
+		if (cardsOnField == 0) {
+			pcs.firePropertyChange("gameover", false, true);
+		}
+		return 0;
+	}
+	
+	/**
+	 * Vote to draw additional cards from the deck.
+	 * If more than half of the players have voted to draw cards then 3 cards from the deck
+	 * will be placed onto the field so long as the field's size is less than 21.
+	 * @param playerNum player who is voting to draw more cards.
+	 */
+	public synchronized void drawCards(byte playerNum){
+		System.out.println(playerNum + "wants to draw cards");
+		if (!playersAskingDraw.contains(playerNum)) {
+			playersAskingDraw.add(playerNum);
+		}
+		if (playersAskingDraw.size()<=(numPlayers-numPlayersRemoved)/2) {
+			return;
+		}
+		
+		if(cardsOnField>=21){
+			return;
+		}
+		for(int i=cardsOnField; i<cardsOnField+3; i++){
+			if (currentCardIndex >= cardsInDeck.length) {
+				gameRunning = false;
+				pcs.firePropertyChange("gameover", false, true);//game has ended
+				return; // GAMEOVER
+			}
+			cardsInField[i] = cardsInDeck[currentCardIndex];
+			currentCardIndex++;
+		}
+		cardsOnField += 3;
+		pcs.firePropertyChange("cards", true, false);
+		playersAskingDraw.clear();
+	}
+	
+	/**
+	 * Accessor for the number of cards left in the deck
+	 * @return the number of cards left in the deck
+	 */
+	public synchronized int numCardsLeft() {
+		return cardsInDeck.length-currentCardIndex;
+	}
+
+
+	/**
+	 * Accessor for set of cards in the deck.
+	 * @return set of cards in deck
+	 */
+
+	public synchronized String[] getCards(){
+		return cardsInDeck;
+	}
+	/**
+	 * Accessor for set of players in game.
+	 * @return set of players in game
+	 */
+
+	public synchronized Set<Player> getPlayers() {
+		return players;
+	}
+	
+	/**
+	 * Accessor for the cards in the field
+	 * @return the array of cards in the field
+	 */
+	public synchronized String[] getCardsInField() {
+		return cardsInField;
+	}
+	
+	/**
+	 * Accessor for the number of cards on the field
+	 * @return the number of cards on the field
+	 */
+	public synchronized int getNumCardsOnField() {
+		return cardsOnField;
+	}
+	
+	/**
+	 * Accessor for whether the game is running or not
+	 * @return whether the game is running or not
+	 */
+	public boolean isGameRunning() {
+		return gameRunning;
+	}
+	
+	/**
+	 * Accessor for the player who is calling set
+	 * @return the player who is calling set
+	 */
+	public byte getPlayerCallingSet() {
+		return (byte) playerCallingSet;
+	}
+	
+	/**
+	 * Accessor for the players' scores
+	 * @return the players' scores
+	 */
+	public short[] getScores() {
+		short[] scores = new short[numPlayers];
+		for (Player p : players) {
+			scores[p.getID()-1] = (short)p.getScore();
+		}
+		return scores;
+	}
+	
+	/**
+	 * Returns the ID of the player with the highest score
+	 * @return the ID of the player with the highest score
+	 */
+	public byte getHighestScorer() {
+		short maxScore = -1;
+		byte playerNum = 0;
+		for (Player p : players) {
+			short temp = (short)p.getScore();
+			if (temp > maxScore) {
+				maxScore = temp;
+				playerNum = (byte)p.getID();
+			}
+		}
+		return playerNum;
+	}
+
+	/**
+	 * Accessor for the Game's PCS
+	 * @return the PCS
+	 */
+	public PropertyChangeSupport getPCS() {
+		return pcs;
+	}
+
+}

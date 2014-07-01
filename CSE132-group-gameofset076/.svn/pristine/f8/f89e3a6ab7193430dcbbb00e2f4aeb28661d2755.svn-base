@@ -1,0 +1,282 @@
+package lab5.client;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.EventQueue;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.DefaultListModel;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.Timer;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.JLabel;
+import javax.swing.JScrollPane;
+import javax.swing.JList;
+import javax.swing.SwingConstants;
+import java.awt.Font;
+import java.awt.SystemColor;
+import java.util.HashSet;
+import java.util.Set;
+import javax.swing.border.LineBorder;
+import javax.swing.JTextField;
+import javax.swing.JTextArea;
+
+public class SetGUI extends JFrame {
+
+	// Drop list that selects number of players
+	// Start button
+
+	private static JPanel contentPane;
+	private Client client;
+	private int contentPaneX = 0;
+	private int contentPaneY = 0;
+	private int contentPaneWidth = 10 * cardWidth;
+	private int contentPaneHeight = 4 * cardHeight;
+	private static int cardX = 0;
+	private static int cardY = 0;
+	private static int cardWidth = 96;
+	private static int cardHeight = 137;
+	private int startButtonX = 380;
+	private int startButtonY = 322;
+	private int startButtonWidth = 205;
+	private int startButtonHeight = 89;
+	private int titleX = 380;
+	private int titleY = 41;
+	private int titleWidth = 205;
+	private int titleHeight = 70;
+	private int playerPaneX = 380;
+	private int playerPaneY = 176;
+	private int playerPaneWidth = 205;
+	private int playerPaneHeight = 135;
+	private int numberCardsX = 752;
+	private int numberCardsY = 134;
+	private int numberCardsWidth = 150;
+	private int numberCardsHeight = 14;
+	
+
+	private DefaultListModel listModelStartPlayers;
+	private DefaultListModel listModelPlayersPoints;
+	private JList listStartPlayers;
+	private JList listPlayersPoints;
+	private static int cardsInPlay = 21; // temporary;
+	private static JTextArea numberOfCardsSelectedArea;
+	private static JButton[] cardsYEAH = new JButton[21];
+	private JLabel lblTitle;
+	private JLabel lblNumberOfCards;
+	private int numberOfPlayers;
+	private static boolean setPressed;
+	private static JButton setButton;
+	private static Set<JButton> selectedSet = new HashSet<JButton>();
+	private JScrollPane playersPointsPane;
+	private JTextField nameField;
+
+	/**
+	 * Launch the application.
+	 */
+	public static void main(String[] args) {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					SetGUI frame = new SetGUI(new Client());
+					frame.setVisible(true);
+					int a = 0;
+
+					for (int j = 0; j < 3; j++) {
+						for (int i = 0; i < cardsInPlay / 3; i++) {
+
+							final JButton card = new JButton();
+							card.setBounds(cardX, cardY, cardWidth, cardHeight);
+							card.setIcon(new ImageIcon(
+									SetGUI.class
+											.getResource("/lab5/client/mediumcards/1BlankCard.jpg")));
+							cardX += cardWidth + 5;
+							contentPane.add(card);
+							cardsYEAH[a] = card;
+
+							a++;
+
+							card.setVisible(false);
+							card.addActionListener(new ActionListener() {
+
+								@Override
+								public void actionPerformed(ActionEvent arg0) {
+									if (selectedSet.size() < 3 && setPressed) {
+										if (!selectedSet.contains(card)) {
+											selectedSet.add(card);
+											numberOfCardsSelectedArea
+													.setText(""
+															+ selectedSet
+																	.size());
+											card.setBorder(new LineBorder(
+													Color.YELLOW, 50, true));
+										} else {
+											if (selectedSet.contains(card)) {
+												selectedSet.remove(card);
+												card.setBorder(new LineBorder(
+														Color.GRAY, 0, true));
+												numberOfCardsSelectedArea
+														.setText(""
+																+ selectedSet
+																		.size());
+											}
+										}
+									}
+									if (selectedSet.size() == 3) {
+										setPressed = false;
+										setButton.setText("Pick");
+										// do shit , reset cards
+									}
+								}
+
+							});
+
+						}
+						cardX = 0;
+						cardY += cardHeight + 5;
+					}
+
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
+	}
+
+	public void run() {
+		/*
+		 * has the client constantly read from the server. updates the display
+		 * based on what the server says. client should have a model of what
+		 * cards are on the table, and the GUI should constantly update based on
+		 * that model. all of the pictures should be named after their four-byte
+		 * description, so you can easily access them. the client should also
+		 * have a model of the players and scores.
+		 */
+	}
+
+	/**
+	 * Create the frame.
+	 */
+	public SetGUI(Client c) {
+		// do something with cards in play
+		client = c;
+
+		getContentPane().setLayout(null);
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setBounds(0, 0, 10 * cardWidth, 4 * cardHeight); // 8, 4
+		contentPane = new JPanel();
+		contentPane.setBackground(SystemColor.controlHighlight);
+		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+		setContentPane(contentPane);
+
+		contentPane.setLayout(null);
+
+		
+		lblTitle = new JLabel("Set");
+		lblTitle.setFont(new Font("Mistral", Font.PLAIN, 60));
+		lblTitle.setHorizontalAlignment(SwingConstants.CENTER);
+		lblTitle.setBounds(titleX, titleY, titleWidth, titleHeight);
+		contentPane.add(lblTitle);
+		
+		
+		final JScrollPane startGamePane = new JScrollPane();
+		startGamePane.setBounds(playerPaneX, playerPaneY, playerPaneWidth,
+				playerPaneHeight);
+		contentPane.add(startGamePane);
+
+		listModelStartPlayers = new DefaultListModel();
+		listStartPlayers = new JList(listModelStartPlayers);
+		listStartPlayers.setBorder(new TitledBorder(null, "Number of Players",
+				TitledBorder.LEADING, TitledBorder.TOP, null, null));
+		startGamePane.setViewportView(listStartPlayers);
+
+		for (int i = 1; i <= 4; i++) {
+			listModelStartPlayers.addElement(i);
+		}
+
+		final JButton start = new JButton();
+		start.setText("Start Game");
+		start.setBounds(startButtonX, startButtonY, startButtonWidth,
+				startButtonHeight);
+		contentPane.add(start);
+
+		start.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				if (listStartPlayers.getSelectedValue() != null) {
+					numberOfPlayers = (int) listStartPlayers.getSelectedValue();
+					for (int i = 0; i < cardsInPlay; i++) {
+						cardsYEAH[i].setVisible(true);
+					}
+					setButton.setVisible(true);
+					lblNumberOfCards.setVisible(true);
+					numberOfCardsSelectedArea.setVisible(true);
+					playersPointsPane.setVisible(true);
+					start.setVisible(false);
+					startGamePane.setVisible(false);
+					lblTitle.setVisible(false);
+					nameField.setVisible(false);
+				} else {
+					System.out
+							.println("You need to select the number of players");
+				}
+
+			}
+
+		});
+
+		setButton = new JButton("Call Set");
+		setButton.setBounds(813, 86, 89, 37);
+		contentPane.add(setButton);
+
+		numberOfCardsSelectedArea = new JTextArea();
+		numberOfCardsSelectedArea.setEditable(false);
+		numberOfCardsSelectedArea.setBounds(813, 159, 89, 37);
+		contentPane.add(numberOfCardsSelectedArea);
+
+		lblNumberOfCards = new JLabel("Number of Cards Selected");
+		lblNumberOfCards.setBounds(numberCardsX, numberCardsY, numberCardsWidth, numberCardsHeight);
+		contentPane.add(lblNumberOfCards);
+		
+		
+		listModelPlayersPoints = new DefaultListModel();
+		
+		playersPointsPane = new JScrollPane();
+		playersPointsPane.setBounds(698, 266, 203, 133);
+		contentPane.add(playersPointsPane);
+		listPlayersPoints = new JList(listModelPlayersPoints);
+		playersPointsPane.setViewportView(listPlayersPoints);
+		listPlayersPoints.setBorder(new TitledBorder(null, "Number of Sets For Each Player",
+				TitledBorder.LEADING, TitledBorder.TOP, null, null));
+		
+		nameField = new JTextField();
+		nameField.setText("Type your name in this box");
+		nameField.setBounds(380, 131, 205, 20);
+		contentPane.add(nameField);
+		nameField.setColumns(10);
+		
+		
+		
+		setButton.setVisible(false);
+		lblNumberOfCards.setVisible(false);
+		numberOfCardsSelectedArea.setVisible(false);
+		playersPointsPane.setVisible(false);
+
+		setButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				if (!setPressed) {
+					setPressed = true;
+					setButton.setText("Pick");
+				}
+			}
+		});
+
+	}
+}

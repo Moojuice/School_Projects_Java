@@ -1,0 +1,233 @@
+package lab5.model;
+
+import java.util.*;
+
+import lab5.model.Player;
+
+public class SetGame {
+	private Set<Player> players;	// set of players in the game
+	private int numPlayers; 		// number of players since game started
+	private String[] cardsInDeck; // maybe make this an array list? 
+	private String[] cardsInField;
+	private int currentCardIndex;
+	private int cardsOnField;
+	private int playerCallingSet;
+	private int setTimeOut = 15000;
+	private ArrayList<Byte> playersAskingDraw;
+	private Timer t;
+	private boolean gameRunning;
+
+	public SetGame() {
+		players = new HashSet<Player>();
+		numPlayers = 0;
+		cardsInDeck = new String[81];
+		char[] colors = {'b', 'g', 'r'};
+		char[] shapes = {'d', 'o', 's'};
+		char[] fills = {'f', 'o', 's'};
+		char[] numbers = {'1', '2', '3'};
+		
+		for(int a=0; a<colors.length; a++){
+			for(int b=0; b<shapes.length; b++){
+				for(int c=0; c<fills.length; c++){
+					for(int d=0; d<numbers.length; d++){
+						char[] card = {colors[a], shapes[b], fills[c], numbers[d]};
+						cardsInDeck[a*27+b*9+c*3+d] = String.valueOf(card);
+					}
+				}
+			}
+		}
+		Collections.shuffle(Arrays.asList(cardsInDeck));
+		
+		cardsInField = new String[21];
+		for (int i=0; i<12; i++) {
+			cardsInField[i] = cardsInDeck[i];
+		}
+		currentCardIndex = 12;
+		cardsOnField = 12;
+		playerCallingSet=0;
+		playersAskingDraw = new ArrayList<Byte>();
+		gameRunning = true;
+		t = new Timer();
+	}
+
+	/**
+	 * Adds a player to the set of Players playing set.
+	 * @param p player to be added to set of Players
+	 */
+	public synchronized void addPlayer(String player) {
+		numPlayers++;
+		Player p = new Player(player,numPlayers);
+		if (players.contains(p)) {
+			numPlayers--;
+			return;
+		}
+		players.add(p);
+	}
+	
+	public synchronized boolean callSet(int playerNum) {
+		if (playerCallingSet == 0) {
+			playerCallingSet = playerNum;
+			t.schedule(new TimerTask() {
+				public void run() {
+					playerCallingSet = 0;
+				}
+			}, setTimeOut);
+			return true;
+		}
+		return false;		
+	}
+
+//	public synchronized boolean isSet(String c1, String c2, String c3){
+//		int c1InDeck = -1;
+//		int c2InDeck = -1;
+//		int c3InDeck = -1;
+//		for(int i=0; i<cardsInField.length; i++){
+//			if(cardsInField[i].equals(c1)){
+//				c1InDeck = i;
+//			}
+//			else if(cardsInField[i].equals(c2)){
+//				c2InDeck = i;
+//			}
+//			else if(cardsInField[i].equals(c3)){
+//				c3InDeck = i;
+//			}
+//		}
+//		if(c1InDeck<0 || c2InDeck<0 || c3InDeck<0){
+//			return false;
+//		}
+//		byte[] card1 = c1.getBytes();
+//		byte[] card2 = c2.getBytes();
+//		byte[] card3 = c3.getBytes();
+	
+	public synchronized byte isSet(byte i1, byte i2, byte i3, byte playerNum) {
+		//return codes
+		//0: valid set
+		//1: timeout
+		//2: not a set
+		if (playerNum != playerCallingSet){
+			return 1; // timeout
+		}
+		byte[] card1 = cardsInField[i1].getBytes();
+		byte[] card2 = cardsInField[i2].getBytes();
+		byte[] card3 = cardsInField[i3].getBytes();
+		for(int i =0; i<card1.length; i++){
+			if (!((card1[i] == card2[i] && card2[i] == card3[i]) || card1[i] != card2[i]
+					&& card2[i] != card3[i] && card1[i] != card3[i])) {
+				return 2; // not a set;
+			}
+		}
+//		cardsInField[c1InDeck] = "";
+//		cardsInField[c2InDeck] = "";
+//		cardsInField[c3InDeck] = "";
+		//int[] cardsToReplace = {c1InDeck, c2InDeck, c3InDeck};
+		int[] cardsToReplace = {i1, i2, i3};
+		Arrays.sort(cardsToReplace);
+		
+		for (Player p : players) {
+			if (p.getID()==playerCallingSet) {
+				p.setScore(p.getScore()+1);
+			}
+		}
+		playerCallingSet = 0;
+		
+		if (cardsOnField <= 12) {
+			for(int i: cardsToReplace){
+				if (currentCardIndex >= cardsInDeck.length) {
+					return 0;
+				}
+				cardsInField[i] = cardsInDeck[currentCardIndex];
+				currentCardIndex++;
+			}
+		}
+		else {
+			int ctrIndex = 0;
+			for (int i=0; i<cardsToReplace.length; i++) {
+				cardsInField[i] = null;
+			}
+			for (int i=cardsOnField-1; i>=cardsOnField-4; i--) {
+				if (cardsInField[i] != null) {
+					cardsInField[cardsToReplace[ctrIndex]] = cardsInField[i];
+					cardsInField[i] = null;
+					ctrIndex++;
+				}
+			}
+			cardsOnField -= 3;
+		}
+		
+		return 0;
+	}
+	
+	public synchronized void drawCards(byte playerNum){
+		if (!playersAskingDraw.contains(playerNum)) {
+			playersAskingDraw.add(playerNum);
+		}
+		if (playersAskingDraw.size()<players.size()/2) {
+			return;
+		}
+		
+		if(cardsOnField>=21){
+			return;
+		}
+		for(int i=cardsOnField; i<cardsOnField+3; i++){
+			if (currentCardIndex >= cardsInDeck.length) {
+				gameRunning = false;
+				return; // GAMEOVER
+			}
+			cardsInField[i] = cardsInDeck[currentCardIndex];
+			currentCardIndex++;
+		}
+		cardsOnField += 3;
+		playersAskingDraw.clear();
+	}
+	
+	public synchronized int numCardsLeft() {
+		return 81-currentCardIndex;
+	}
+
+
+	/**
+	 * Accessor for set of cards in the deck.
+	 * @return set of cards in deck
+	 */
+
+	public synchronized String[] getCards(){
+		return cardsInDeck;
+	}
+	/**
+	 * Accessor for set of players in game.
+	 * @return set of players in game
+	 */
+
+	public synchronized Set<Player> getPlayers() {
+		return players;
+	}
+	
+	/**
+	 * Accessor for the cards in the field
+	 * @return the array of cards in the field
+	 */
+	public synchronized String[] getCardsInField() {
+		return cardsInField;
+	}
+	
+	public synchronized int getNumCardsOnField() {
+		return cardsOnField;
+	}
+	
+	public boolean isGameRunning() {
+		return gameRunning;
+	}
+	
+	public byte getPlayerCallingSet() {
+		return (byte) playerCallingSet;
+	}
+	
+	public short[] getScores() {
+		short[] scores = new short[players.size()];
+		for (Player p : players) {
+			scores[p.getID()-1] = (short)p.getScore();
+		}
+		return scores;
+	}
+
+}

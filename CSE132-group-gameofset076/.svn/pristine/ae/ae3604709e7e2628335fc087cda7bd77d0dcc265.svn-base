@@ -1,0 +1,167 @@
+package lab5.client;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.EventQueue;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.DefaultListModel;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.JLabel;
+import javax.swing.JScrollPane;
+import javax.swing.JList;
+import javax.swing.SwingConstants;
+import java.awt.Font;
+import java.awt.SystemColor;
+
+public class SetGUI extends JFrame {
+
+	// Drop list that selects number of players
+	// Start button
+
+	private static JPanel contentPane;
+	private Client client;
+	private static int cardX = 0;
+	private static int cardY = 0;
+	private static int cardWidth = 96;
+	private static int cardHeight = 137;
+	private int buttonWidth = 100;
+	private int buttonHeight = 75;
+	private DefaultListModel listModelStart;
+	private JList listStart;
+	private static int cardsInPlay = 12; // temporary;
+	private String[] cards = new String[21]; // each card in the array is
+												// identified
+	private static JButton[] cardsYEAH = new JButton[21];
+	private JLabel lblSet;
+	private int numberOfPlayers;
+
+	/**
+	 * Launch the application.
+	 */
+	public static void main(String[] args) {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					SetGUI frame = new SetGUI(new Client());
+					frame.setVisible(true);
+					int a = 0;
+					for (int j = 0; j < 3; j++) { //getting cards from client, not this
+						for (int i = 0; i < cardsInPlay / 3; i++) {
+
+							JButton card = new JButton();
+							card.setBounds(cardX, cardY, cardWidth, cardHeight);
+							card.setIcon(new ImageIcon(SetGUI.class
+									.getResource("/lab5/client/mediumcards/1BlankCard.jpg")));
+							cardX += cardWidth;
+							contentPane.add(card);
+							cardsYEAH[a] = card;
+							a++;
+
+							card.setVisible(false);
+							card.addActionListener(new ActionListener() {
+
+								@Override
+								public void actionPerformed(ActionEvent arg0) {
+									System.out.println("wee");
+								}
+
+							});
+
+						}
+						cardX = 0;
+						cardY += cardHeight;
+					}
+
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
+	}
+
+	public void run() {
+		/*
+		 * has the client constantly read from the server. updates the display
+		 * based on what the server says. client should have a model of what
+		 * cards are on the table, and the GUI should constantly update based on
+		 * that model. all of the pictures should be named after their four-byte
+		 * description, so you can easily access them. the client should also
+		 * have a model of the players and scores.
+		 */
+	}
+
+	/**
+	 * Create the frame.
+	 */
+	public SetGUI(Client c) {
+		// do something with cards in play
+		client = c;
+		
+		getContentPane().setLayout(null);
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setBounds(0, 0, 8 * cardWidth, 4 * cardHeight);
+		contentPane = new JPanel();
+		contentPane.setBackground(SystemColor.controlHighlight);
+		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+		setContentPane(contentPane);
+
+		contentPane.setLayout(null);
+
+		lblSet = new JLabel("Set");
+		lblSet.setFont(new Font("Mistral", Font.PLAIN, 60));
+		lblSet.setHorizontalAlignment(SwingConstants.CENTER);
+		lblSet.setBounds(277, 42, 205, 70);
+		contentPane.add(lblSet);
+
+		final JScrollPane startGamePane = new JScrollPane();
+		startGamePane.setBounds(277, 175, 205, 135);
+		contentPane.add(startGamePane);
+
+		listModelStart = new DefaultListModel();
+		listStart = new JList(listModelStart);
+		listStart.setBorder(new TitledBorder(null, "Number of Players",
+				TitledBorder.LEADING, TitledBorder.TOP, null, null));
+		startGamePane.setViewportView(listStart);
+
+		for (int i = 1; i <= 4; i++) {
+			listModelStart.addElement(i);
+		}
+
+		boolean buttonPressed = false;
+
+		final JButton start = new JButton();
+		start.setText("Start Game");
+		start.setBounds(277, 321, 205, 89);
+		buttonPressed = true;
+		contentPane.add(start);
+
+		start.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				if (listStart.getSelectedValue() != null) {
+					numberOfPlayers = (int) listStart.getSelectedValue();
+					for (int i = 0; i<12; i++) {
+						cardsYEAH[i].setVisible(true);
+					}
+					start.setVisible(false);
+					startGamePane.setVisible(false);
+					lblSet.setVisible(false);
+				} else {
+					System.out
+							.println("You need to select the number of players");
+				}
+
+			}
+
+		});
+
+	}
+}

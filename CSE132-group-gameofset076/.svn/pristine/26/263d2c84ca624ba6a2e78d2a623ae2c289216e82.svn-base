@@ -1,0 +1,46 @@
+package lab5.client;
+
+import java.io.DataInputStream;
+import java.io.IOException;
+/**SetMsgInputStream
+ * Reads messages for the gameOfSet based on the SetGame Protocol
+ * Format: Magic Number (char '!'), Message Type (byte), Length of payload (short), Payload. 
+ * 
+ *  Author: Jeremy Tang, Edward Xie, Ben Epstein, Kyle Liu
+ *  Course: CSE 132
+ *  Lab:    4
+ */
+public class SetMsgInputStream {
+	private DataInputStream in;
+
+	public SetMsgInputStream(DataInputStream input){
+		in = input;
+	}
+	/**
+	 * Reads from the input stream,and returns a set
+	 * message as a string that can be tokenized.
+	 * @return the message
+	 * @throws IOException
+	 */
+	public String getInput() throws IOException{
+		String message = "";
+		byte b = 'p';
+		
+		// check for the magic number
+		while(b!= '!'){
+			b = in.readByte();
+		}
+		b = in.readByte(); // message type
+		message+= (char)b;
+		short s = in.readShort(); // length of message
+		while(s>0){
+			b = in.readByte();
+			if (b==0)
+				b = (byte)37;
+			message+=(char)b;
+			s--;
+		}
+		return message;
+	}
+	
+}

@@ -1,0 +1,104 @@
+package lab5.client;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+
+/**
+ *  Client
+ *   Player program for game of Set.
+ *
+ *   Author: COMPLETE THIS
+ *   Course: CSE 132
+ *   Lab:    4
+ */
+
+public class Client {
+	public byte playerNumber;
+	public byte versionNumber;
+	public byte cardsLeft;
+	public byte cardsInField;
+	public String[] playerArray;
+	public String[] cardArray;
+	public SetMsgOutputStream smos;
+	// Complete the Client class
+
+	public Client(){
+		versionNumber = 1;
+	}
+	public void run(){
+		try {
+			Socket s = new Socket("localhost", 10501);
+			DataOutputStream dos = new DataOutputStream(s.getOutputStream());
+			DataInputStream dis = new DataInputStream(s.getInputStream());
+			SetMsgInputStream smis = new SetMsgInputStream(dis);
+			SetMsgOutputStream smos = new SetMsgOutputStream(dos, true);
+			while(true){
+				String input = smis.getInput();
+				byte[] bytes = input.getBytes();
+				if(bytes[0]==1){	//Server recieves hello message, and we recieve version and playernumber
+					 if (versionNumber!= bytes[1]){
+						 System.out.println("Client is out of date");
+						 System.exit(-1);
+						 return;
+					 }
+					 playerNumber = bytes[2];
+					//smos.huehuehuehue(); //what.
+				}
+				else if(bytes[0]==5){	//game field update
+					cardsLeft = bytes[1];
+					cardsInField = bytes[2];
+					ArrayList<Byte> cards = new ArrayList<Byte>();
+					for(int i =3; i<bytes.length; i++){
+						cards.add(bytes[i]);
+					}
+				}
+
+				else if(bytes[0] ==6){
+					byte players = bytes[1];
+					int index = 2;
+
+					for(int i=0; i<players; i++){
+						byte playerNum = bytes[index];
+						index++;
+						byte[] nameLengthBytes = {bytes[index], bytes[index+1]};
+						short nameLength = Short.decode(String.valueOf(nameLengthBytes));
+						index+=2;
+						String name = input.substring(index,index+nameLength);
+						// make a player (later)
+						index+=nameLength;
+					}
+				}
+				else if(bytes[0] ==7){
+					byte players = bytes[1];
+					
+					int index = 2;
+					for(int i=0; i<players; i++){
+						byte[] playerNum = {bytes[index], bytes[index+1]};
+						
+					}
+				}
+			}
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	/**
+	 * Entry point for lab5 client.
+	 * @param args unused
+	 */
+	public void beginGame(String name){
+		
+	}
+	
+	public static void main(String[] args) {
+		Client c = new Client();
+		c.run();
+	}
+
+}

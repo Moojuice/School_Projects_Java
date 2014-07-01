@@ -1,0 +1,166 @@
+package lab5.view;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.net.Socket;
+import java.net.SocketException;
+
+import lab5.client.SetMsgInputStream;
+import lab5.client.SetMsgOutputStream;
+import lab5.model.SetGame;
+/**ServantThread
+ * 
+ * This thread listens to the client for what type of game to join, joins an
+ * appropriate game, and then listens to requests from the client to interact with the game.
+ * 
+ *
+ */
+public class ServantThread extends Thread {
+	private SetGame model;
+	private byte yourNumber;
+	private byte versionNumber = 1;
+	private Socket mySocket;
+	boolean started;
+	private String name;
+	private GameQueuebe master;
+	private SetMsgOutputStream smos;
+	private SetMsgInputStream smis;
+
+	public ServantThread(GameQueuebe[] masters, Socket s){
+		try {
+			mySocket = s;
+			smis = new SetMsgInputStream(new DataInputStream(s.getInputStream()));
+			smos = new SetMsgOutputStream(new DataOutputStream(s.getOutputStream()),false);
+			System.out.println("smis & smos success");
+			byte[] hello = smis.getInput().getBytes();
+			System.out.println("player successfully received");
+			byte players;
+			name = "";
+			//System.out.println(String.valueOf(hello[0]));
+			if(hello[0]==2){//Was this the right message type?
+				System.out.println("success");
+				players = hello[1];
+				for(short position = 2; position<hello.length; position++){
+					name+= (char) hello[position];
+				}
+				System.out.println("We have a name");
+			}else{
+				s.close(); //disconnect if you didn't receive a hello message.
+				model = null;
+				System.out.println("no hello message :(");
+				return;
+			}
+			System.out.println(name);
+			yourNumber = 0;
+			master = masters[players-1];
+			System.out.println("We have a master: " + master);
+			Object lock = master.getLock();
+			synchronized(lock){
+				System.out.println("Got Lock");
+				model = master.getModel();
+				if(master.addClient(name)){//if you were the last player to be added in this game
+					System.out.println("");
+					yourNumber = players;
+				}else{//if there are still more players to be added
+					byte i = 0;
+					for(byte j = 0; j < players; j++){
+						if(name.equals(master.getClients()[i])){
+							yourNumber = (byte) (i+1);
+							started = true;
+							System.out.println("we have started");
+						}else{
+							i ++;
+						}
+					}
+				}
+				System.out.println(yourNumber+"");
+				lock.notifyAll();
+				smos.helloResponseMessage(yourNumber, versionNumber); //tell the client their number
+				System.out.println("done");
+			}
+		}
+		catch (IOException e) {
+			if(master!=null){
+				if(name!= null){
+					synchronized(master.getLock()){
+						master.removeClient(name);
+						master.getLock().notifyAll();
+					}
+				}
+			}
+		}
+	}
+
+	public void run(){
+		System.out.println("I'm running, just like I always dreamed I one day would");
+		if(model!= null){
+			Object lock = master.getLock();
+			while(!started){//wait until the game starts.
+				synchronized(lock){
+					try {
+						if(model==master.getModel()){//the master holds a new model once the game starts
+							if(mySocket.isConnected()){
+								System.out.println("waiting for players"+master.getPlayersLeft());
+								smos.waitingForPlayers(master.getPlayersLeft());
+								lock.wait();
+							}else{
+								master.removeClient(name);
+							}
+						}else{
+							started = true;
+							smos.waitingForPlayers((byte) 0);
+						}
+					}catch(InterruptedException e) {
+						e.printStackTrace();
+					}catch (IOException e) {
+						master.removeClient(name);
+						lock.notifyAll();
+					}
+				}
+			}
+			
+			System.out.println("game started");
+
+			while(model.isGameRunning()){//while the game is running.
+				System.out.println("The model at least appears to be running");
+				try {
+					byte[] message = smis.getInput().getBytes();
+					byte type = message[0];
+					System.out.println("Well, we have a message at least");
+					if(type == 3){
+						System.out.println("we got the request for info");
+						if(model.isGameRunning()){
+							smos.gamefieldUpdateMessage((byte)model.numCardsLeft(), (byte)model.getNumCardsOnField(), model.getCardsInField());
+							smos.gameplayerUpdateMessage((byte) model.getPlayers().size(),model.getPlayers());
+							smos.gamescoreUpdateMessage((byte) model.getPlayers().size(), model.getScores());	
+							smos.selectCards(model.getPlayerCallingSet());
+							System.out.println("we sent all the info");
+						}else{
+							System.out.println("Playtime's over");
+							smos.gameOver(model.getHighestScorer());
+						}
+					}else if(type == 13){
+						model.callSet((int) message[1]);
+					}else if(type == 15){
+						model.isSet(message[2], message[3], message[4], message[1]);
+					}else{
+						System.out.println("The message was shit");
+					}
+				}catch(SocketException e){//graceful termination 
+					model.removePlayer(name,yourNumber);
+					return;
+				}catch(EOFException e){//graceful termination 
+					model.removePlayer(name,yourNumber);
+					return;
+				}
+				catch (IOException e) { //error that we haen't accounted for
+					e.printStackTrace();
+				}
+			}
+		}else{
+			return; //the socket didn't connect, no need to do anything.
+		}
+	}
+}
